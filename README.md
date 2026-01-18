@@ -15,9 +15,10 @@ This extension implements two matrix-based algorithms to convert numbers between
 
 ## ✨ Features
 
-* **Matrix Visualization:** See the exact matrix multiplication steps used to transform the digits.
+* **Arbitrary Precision:** Powered by `BigInt`, this tool can convert integers of arbitrary length (hundreds of digits) without loss of precision.
+* **Matrix Visualization:** See the exact matrix multiplication steps ($N \times T = R$) used to transform the digits.
 * **Batch Processing:** Vectorized implementation converts multiple numbers simultaneously using a single matrix operation.
-* **Step-by-Step Normalization:** Visualizes the "Digit Normalization" (carry/borrow propagation) process required to clean up the result.
+* **Round-Trip Testing:** Includes a **Batch Output** field to easily copy results and paste them back into the input for reverse conversion.
 * **Advanced Base Support:** Supports bases from **-62 to 62** (including negative bases like Negabinary).
 * **Dual Algorithms:** Automatically detects if the "Multiples Method" can be used (e.g., Base 8 to Base 2), or defaults to the general "Offset Method."
 
@@ -33,14 +34,17 @@ This extension implements two matrix-based algorithms to convert numbers between
 
 1.  **Input:** Enter integers (one per line) into the text box.
 2.  **Config:** Select your **Source Base** and **Target Base**.
+    * Use the **Swap (⇄)** button to quickly flip source and target.
+    * *Note:* Bases **-1, 0, and 1** are restricted as they do not function as valid positional number systems.
 3.  **Method:**
-    * **Offset (Pascal Matrix):** Works for *any* pair of bases.
+    * **Offset (Pascal Matrix):** Works for *any* pair of valid bases.
     * **Multiples:** Only available if `Source % Target == 0` (e.g., Base 16 to Base 4).
 4.  **Visualize:** Click **Convert & Visualize**.
     * The extension will display the **Input Matrix (N)**.
     * It will show the **Transformation Matrix** ($T$ or $D$).
     * It will show the **Result Matrix (R)** before normalization.
     * Finally, it displays the normalized digits in the target base.
+5.  **Copy Results:** Use the **Batch Output** text area at the bottom to copy all converted numbers at once.
 
 ## 📐 The Mathematics
 
@@ -64,7 +68,7 @@ The matrix operations produce a result vector $R$ where "digits" may be larger t
 ## 📂 Project Structure
 
 * `popup.html` - The user interface.
-* `popup.js` - The core logic (Matrix generation, Multiplication, Normalization).
+* `popup.js` - The core logic (BigInt Math, Matrix generation, Normalization).
 * `style.css` - Styling for the visualization cards.
 * `manifest.json` - Chrome extension configuration.
 

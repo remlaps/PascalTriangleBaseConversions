@@ -6,20 +6,16 @@ function getVal(char) {
 }
 
 function getChar(val) {
-  // val is BigInt, convert to Number for indexing char map
   let v = Number(val);
   if (v < 0 || v >= 62) return '?';
   return CHARS[v];
 }
 
-// BigInt Absolute Value helper
 function abs(n) {
   return n < 0n ? -n : n;
 }
 
-// Combinations (n choose k) - Returns BigInt
 function combinations(n, k) {
-  // Inputs n, k are Numbers (indices), output is BigInt
   if (k < 0 || k > n) return 0n;
   if (k === 0 || k === n) return 1n;
   if (k > n / 2) k = n - k;
@@ -36,17 +32,13 @@ function combinations(n, k) {
 // --- MATRIX GENERATORS (BigInt) ---
 
 function getPascalPower(size, exponent) {
-  // size is Number, exponent is BigInt
   let matrix = Array(size).fill().map(() => Array(size).fill(0n));
   for (let r = 0; r < size; r++) {
     let power = size - 1 - r; 
     for (let c = r; c < size; c++) {
       let k = c - r;
-      let binom = combinations(power, k); // Returns BigInt
-      
-      // exponent ** BigInt(k)
+      let binom = combinations(power, k); 
       let offsetPow = exponent ** BigInt(k);
-      
       matrix[r][c] = binom * offsetPow;
     }
   }
@@ -54,7 +46,6 @@ function getPascalPower(size, exponent) {
 }
 
 function getDiagonalMatrix(size, factor) {
-  // size is Number, factor is BigInt
   let matrix = Array(size).fill().map(() => Array(size).fill(0n));
   for (let i = 0; i < size; i++) {
     let power = BigInt(size - 1 - i);
@@ -94,14 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const sourceIn = document.getElementById('sourceBase');
   const targetIn = document.getElementById('targetBase');
   const hint = document.getElementById('methodHint');
+  const batchOutput = document.getElementById('batchOutput'); // New Element
 
-  // Enforce method restrictions and VALIDITY
   function validateAndToggle() {
-    // Parse as Number for validation checks (bounds are small enough)
     let s = parseInt(sourceIn.value) || 0;
     let t = parseInt(targetIn.value) || 0;
     
-    // ERROR CHECK 1: Bounds (-62 to 62)
     if (Math.abs(s) > 62 || Math.abs(t) > 62) {
       hint.innerText = "Error: Bases must be between -62 and 62.";
       hint.style.color = "red";
@@ -109,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // ERROR CHECK 2: Invalid Bases (-1, 0, 1)
     if (Math.abs(s) < 2 || Math.abs(t) < 2) {
       hint.innerText = "Error: Base must be >= 2 or <= -2.";
       hint.style.color = "red";
@@ -119,9 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('convertBtn').disabled = false;
 
-    // Check Multiples validity
     let isMultiple = (t !== 0) && (s % t === 0);
-    
     let multipleOption = methodSelect.querySelector('option[value="multiple"]');
 
     if(isMultiple) {
@@ -132,14 +118,10 @@ document.addEventListener('DOMContentLoaded', () => {
       hint.innerText = "Multiples method requires Source to be a multiple of Target.";
       hint.style.color = "#666";
       multipleOption.disabled = true;
-      
-      if(methodSelect.value === "multiple") {
-        methodSelect.value = "offset";
-      }
+      if(methodSelect.value === "multiple") methodSelect.value = "offset";
     }
   }
 
-  // Swap Button Logic
   document.getElementById('swapBtn').addEventListener('click', () => {
     let temp = sourceIn.value;
     sourceIn.value = targetIn.value;
@@ -155,19 +137,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputStr = document.getElementById('inputNumbers').value;
     const sBaseNum = parseInt(document.getElementById('sourceBase').value);
     const tBaseNum = parseInt(document.getElementById('targetBase').value);
-    
     const method = document.getElementById('methodSelect').value;
     const resultsArea = document.getElementById('resultsArea');
     
     resultsArea.innerHTML = ''; 
+    batchOutput.value = ''; // Clear previous output
 
     if(isNaN(sBaseNum) || isNaN(tBaseNum)) return;
 
-    // Use BigInt for calculation
     const sourceBase = BigInt(sBaseNum);
     const targetBase = BigInt(tBaseNum);
 
-    // Parse Input Numbers
     let rawLines = inputStr.split('\n');
     let numbers = [];
     
@@ -181,7 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
           let val = getVal(char);
           if (val === -1) throw new Error(`Character '${char}' not found in map.`);
           if (val >= absSource) throw new Error(`Digit '${char}' too large for Base ${absSource}`);
-          // Store digits as BigInt
           digits.push(BigInt(val));
         }
         numbers.push({ original: line, digits: digits });
@@ -195,7 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let maxLength = 0;
     numbers.forEach(n => { if(n.digits.length > maxLength) maxLength = n.digits.length; });
 
-    // Pad inputs to create Matrix N (BigInts)
     let matrixN = numbers.map(n => {
       let padding = Array(maxLength - n.digits.length).fill(0n);
       return padding.concat(n.digits);
@@ -210,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function batchProcessOffset(numbers, matrixN, size, sBase, tBase, container) {
-  let offset = sBase - tBase; // BigInt subtraction
+  let offset = sBase - tBase; 
   let pMatrix = getPascalPower(size, offset);
   let resultMatrixR = matrixMultiply(matrixN, pMatrix);
 
@@ -222,7 +200,7 @@ function batchProcessOffset(numbers, matrixN, size, sBase, tBase, container) {
 }
 
 function batchProcessMultiples(numbers, matrixN, size, sBase, tBase, container) {
-  let factor = sBase / tBase; // BigInt division
+  let factor = sBase / tBase; 
   let dMatrix = getDiagonalMatrix(size, factor);
   let resultMatrixR = matrixMultiply(matrixN, dMatrix);
 
@@ -235,8 +213,6 @@ function batchProcessMultiples(numbers, matrixN, size, sBase, tBase, container) 
 
 function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase, container) {
   let steps = `<strong>${title}</strong>\n${subTitle}\n\n`;
-
-  // Helper to format BigInts with padding
   const fmt = (n, pad) => n.toString().padStart(pad, ' ');
 
   steps += `<strong>Input Matrix N:</strong>\n`;
@@ -253,6 +229,9 @@ function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase
   batchBox.innerHTML = steps;
   container.appendChild(batchBox);
 
+  // NEW: Collection for batch output
+  let finalOutputs = [];
+
   numbers.forEach((num, index) => {
     let card = document.createElement('div');
     card.className = 'result-card';
@@ -260,6 +239,9 @@ function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase
     let rowResult = matR[index];
     let norm = normalize(rowResult, tBase);
     
+    // Add to collection
+    finalOutputs.push(norm.resultString);
+
     let html = `<strong>${num.original} -> Base ${tBase.toString()}</strong>\n`;
     html += `Row ${index}: [${rowResult.map(n => n.toString()).join(', ')}]\n`;
     html += `Normalized: <span class="final-result">${norm.resultString}</span>`;
@@ -267,50 +249,33 @@ function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase
     card.innerHTML = `<div class="step-box">${html}</div>`;
     container.appendChild(card);
   });
+
+  // Fill the Batch Output Textarea
+  document.getElementById('batchOutput').value = finalOutputs.join('\n');
 }
 
-// --- BIGINT NORMALIZATION ---
 function normalize(coeffs, base) {
-  // Coeffs are BigInts
   let arr = [...coeffs]; 
   
   for (let i = arr.length - 1; i >= 0; i--) {
     let val = arr[i];
-    
-    // r = val % base
     let r = val % base;
-    
-    // Force positive remainder
-    if (r < 0n) {
-      r += abs(base);
-    }
-    
-    // q = (val - r) / base
+    if (r < 0n) r += abs(base);
     let q = (val - r) / base;
     
     if (q !== 0n) {
        arr[i] = r;
-       
-       if (i > 0) {
-         arr[i-1] += q;
-       } else {
-         // New MSD
-         arr.unshift(q);
-         i++; 
-       }
+       if (i > 0) arr[i-1] += q;
+       else { arr.unshift(q); i++; }
     } else {
       arr[i] = r; 
     }
   }
 
   let str = "";
-  // Trim leading zeros
   let start = 0;
   while(start < arr.length - 1 && arr[start] === 0n) start++;
+  for(let k = start; k < arr.length; k++) str += getChar(arr[k]);
   
-  for(let k = start; k < arr.length; k++) {
-    str += getChar(arr[k]);
-  }
-
   return { result: arr, resultString: str };
 }
