@@ -121,6 +121,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }
+
+  // NEW: Swap Button Logic
+  document.getElementById('swapBtn').addEventListener('click', () => {
+    let temp = sourceIn.value;
+    sourceIn.value = targetIn.value;
+    targetIn.value = temp;
+    
+    // Trigger validation to update UI and Method availability
+    validateAndToggle();
+  });
   
   sourceIn.addEventListener('input', validateAndToggle);
   targetIn.addEventListener('input', validateAndToggle);
