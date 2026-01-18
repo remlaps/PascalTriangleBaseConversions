@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pascal Base Converter</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Pascal Base Converter</h2>
+    
+    <div class="input-group">
+      <label>Numbers (one per line):</label>
+      <textarea id="inputNumbers" rows="3" placeholder="e.g. 152"></textarea>
+    </div>
+
+    <div class="row">
+      <div class="col">
+        <label>Source Base:</label>
+        <input type="number" id="sourceBase" value="10" min="-62" max="62">
+      </div>
+      <div class="col">
+        <label>Target Base:</label>
+        <input type="number" id="targetBase" value="9" min="-62" max="62">
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>Method:</label>
+      <select id="methodSelect">
+        <option value="offset">Offset (Pascal Matrix)</option>
+        <option value="multiple">Multiples (Source = N * Target)</option>
+      </select>
+      <div id="methodHint" class="hint"></div>
+    </div>
+
+    <button id="convertBtn">Convert & Visualize</button>
+
+    <div id="resultsArea"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
