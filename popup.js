@@ -78,14 +78,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const targetIn = document.getElementById('targetBase');
   const hint = document.getElementById('methodHint');
 
-  // Enforce method restrictions
+// Enforce method restrictions and VALIDITY
   function validateAndToggle() {
-    let s = parseInt(sourceIn.value) || 10;
-    let t = parseInt(targetIn.value) || 9;
+    let s = parseInt(sourceIn.value) || 0;
+    let t = parseInt(targetIn.value) || 0;
     
-    // Check constraints (Max 62)
+    // ERROR CHECK 1: Bounds (-62 to 62)
     if (Math.abs(s) > 62 || Math.abs(t) > 62) {
       hint.innerText = "Error: Bases must be between -62 and 62.";
+      hint.style.color = "red";
+      document.getElementById('convertBtn').disabled = true;
+      return;
+    }
+
+    // ERROR CHECK 2: Invalid Bases (-1, 0, 1)
+    // Absolute value of base must be >= 2
+    if (Math.abs(s) < 2 || Math.abs(t) < 2) {
+      hint.innerText = "Error: Base must be >= 2 or <= -2.";
       hint.style.color = "red";
       document.getElementById('convertBtn').disabled = true;
       return;
@@ -94,8 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('convertBtn').disabled = false;
 
     // Check Multiples validity
-    // Logic: Source must be integer multiple of Target.
-    // Also, handle zero-div checks.
     let isMultiple = (t !== 0) && (s % t === 0);
     
     let multipleOption = methodSelect.querySelector('option[value="multiple"]');
@@ -109,13 +116,12 @@ document.addEventListener('DOMContentLoaded', () => {
       hint.style.color = "#666";
       multipleOption.disabled = true;
       
-      // Force reset if user was on the invalid option
       if(methodSelect.value === "multiple") {
         methodSelect.value = "offset";
       }
     }
   }
-
+  
   sourceIn.addEventListener('input', validateAndToggle);
   targetIn.addEventListener('input', validateAndToggle);
   validateAndToggle();
