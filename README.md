@@ -76,3 +76,6 @@ The matrix operations produce a result vector $R$ where "digits" may be larger t
 
 This project is open-source.
 Algorithm concepts based on *"Alternative Algorithms for Integer Base Conversion"* (Steve Palmer, 2007).
+
+## Announcement
+- [Pascal's Triangle and Matrix Multiplication: Alternative Approaches to Integer Base Conversion](https://steemit.com/popular-stem/@remlaps/pascal-s-triangle-and-matrix-multiplication-alternative-approaches-to-integer-base-conversion)
