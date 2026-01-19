@@ -16,35 +16,27 @@ function abs(n) {
 }
 
 // --- RATIONAL NUMBER HELPER ---
-// Allows us to store "1/25" as {n:1n, d:25n} to avoid decimal precision loss
 class Rat {
   constructor(n, d = 1n) {
     this.n = BigInt(n);
     this.d = BigInt(d);
-    // Standardize signs
     if (this.d < 0n) { this.n = -this.n; this.d = -this.d; }
   }
-
   toString() {
     if (this.d === 1n) return this.n.toString();
     return `${this.n}/${this.d}`;
   }
-
-  // Multiply Rational * Rational
   mul(other) {
     return new Rat(this.n * other.n, this.d * other.d);
   }
-
-  // Add Rational + Rational
   add(other) {
-    // a/b + c/d = (ad + bc) / bd
     let num = (this.n * other.d) + (other.n * this.d);
     let den = this.d * other.d;
     return new Rat(num, den);
   }
 }
 
-// Combinations for Pascal
+// Combinations
 function combinations(n, k) {
   if (k < 0 || k > n) return 0n;
   if (k === 0 || k === n) return 1n;
@@ -60,7 +52,6 @@ function combinations(n, k) {
 
 // --- MATRIX GENERATORS ---
 
-// Pascal Matrix (Offset) - Returns Rationals for consistency
 function getPascalPower(size, exponent) {
   let matrix = Array(size).fill().map(() => Array(size).fill(null));
   for (let r = 0; r < size; r++) {
@@ -79,18 +70,12 @@ function getPascalPower(size, exponent) {
   return matrix;
 }
 
-// Diagonal Matrix (Multiples) - Handles Integer (5) AND Fraction (1/5)
 function getDiagonalMatrix(size, numBase, denBase) {
   let matrix = Array(size).fill().map(() => Array(size).fill(new Rat(0)));
-  
   for (let i = 0; i < size; i++) {
-    // Powers decrease from Left to Right: (N-1)...0
     let power = BigInt(size - 1 - i);
-    
-    // Calculate (num/den) ^ power
     let nP = numBase ** power;
     let dP = denBase ** power;
-    
     matrix[i][i] = new Rat(nP, dP);
   }
   return matrix;
@@ -112,10 +97,8 @@ function matrixMultiply(matA, matB) {
     for (let j = 0; j < cB; j++) { 
       let sum = new Rat(0);
       for (let k = 0; k < cA; k++) {
-        // Inputs in MatA might be BigInts, convert to Rat on fly if needed
         let valA = (matA[i][k] instanceof Rat) ? matA[i][k] : new Rat(matA[i][k]);
-        let valB = matB[k][j]; // MatB is always Rats
-        
+        let valB = matB[k][j]; 
         sum = sum.add(valA.mul(valB));
       }
       result[i][j] = sum;
@@ -137,7 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let s = parseInt(sourceIn.value) || 0;
     let t = parseInt(targetIn.value) || 0;
     
-    // Bounds Check
     if (Math.abs(s) > 62 || Math.abs(t) > 62) {
       hint.innerText = "Error: Bases must be between -62 and 62.";
       hint.style.color = "red";
@@ -153,9 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('convertBtn').disabled = false;
 
-    // Multiples Check: Either S % T == 0  OR  T % S == 0
-    let sIsMult = (t !== 0) && (s % t === 0); // e.g. 10 -> 2
-    let tIsMult = (s !== 0) && (t % s === 0); // e.g. 2 -> 10
+    let sIsMult = (t !== 0) && (s % t === 0);
+    let tIsMult = (s !== 0) && (t % s === 0);
     let isCompatible = sIsMult || tIsMult;
     
     let multipleOption = methodSelect.querySelector('option[value="multiple"]');
@@ -163,7 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if(isCompatible) {
       if(sIsMult) hint.innerText = `Source (${s}) is multiple of Target (${t}). Factor ${s/t}.`;
       else        hint.innerText = `Target (${t}) is multiple of Source (${s}). Factor 1/${t/s}.`;
-      
       hint.style.color = "#666";
       multipleOption.disabled = false;
     } else {
@@ -241,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function batchProcessOffset(numbers, matrixN, size, sBase, tBase, container) {
   let offset = sBase - tBase; 
-  let pMatrix = getPascalPower(size, offset); // Returns Rationals
+  let pMatrix = getPascalPower(size, offset);
   let resultMatrixR = matrixMultiply(matrixN, pMatrix);
 
   renderBatchResult(
@@ -252,18 +232,12 @@ function batchProcessOffset(numbers, matrixN, size, sBase, tBase, container) {
 }
 
 function batchProcessMultiples(numbers, matrixN, size, sBase, tBase, container) {
-  let isFractional = (tBase > sBase); // e.g. 2 -> 10
+  let isFractional = (tBase > sBase);
   let num = 1n, den = 1n;
-  
-  if (isFractional) {
-    den = tBase / sBase; // Factor in denominator: 1/5
-  } else {
-    num = sBase / tBase; // Factor in numerator: 5/1
-  }
+  if (isFractional) den = tBase / sBase;
+  else num = sBase / tBase;
 
-  // Generate Diagonal Matrix with Fractions or Integers
   let dMatrix = getDiagonalMatrix(size, num, den);
-  
   let resultMatrixR = matrixMultiply(matrixN, dMatrix);
 
   renderBatchResult(
@@ -274,109 +248,114 @@ function batchProcessMultiples(numbers, matrixN, size, sBase, tBase, container) 
 }
 
 function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase, container) {
-  let steps = `<strong>${title}</strong>\n${subTitle}\n\n`;
+  let html = `<div style="margin-bottom:10px;">
+    <strong>${title}</strong><br>
+    <span style="font-size:0.9em; color:#666;">${subTitle}</span>
+  </div>`;
+
   const fmt = (n, pad) => n.toString().padStart(pad, ' ');
 
-  steps += `<strong>Input Matrix N:</strong>\n`;
-  matN.forEach(row => steps += `[ ${row.map(n => fmt(n, 4)).join(' ')} ]\n`);
+  // Collapsible Input Matrix
+  let nStr = "";
+  matN.forEach(row => nStr += `[ ${row.map(n => fmt(n, 4)).join(' ')} ]\n`);
+  html += `<details><summary>Input Matrix N</summary><div class="step-box">${nStr}</div></details>`;
 
-  steps += `\n<strong>Transform Matrix (Size ${matTrans.length}x${matTrans.length}):</strong>\n`;
-  matTrans.forEach(row => steps += `[ ${row.map(n => fmt(n, 8)).join(' ')} ]\n`);
+  // Collapsible Transform Matrix
+  let tStr = "";
+  matTrans.forEach(row => tStr += `[ ${row.map(n => fmt(n, 8)).join(' ')} ]\n`);
+  html += `<details><summary>Transform Matrix</summary><div class="step-box">${tStr}</div></details>`;
 
-  steps += `\n<strong>Result Matrix R (Rational):</strong>\n`;
-  matR.forEach(row => steps += `[ ${row.map(n => fmt(n, 10)).join(' ')} ]\n`);
+  // Collapsible Result Matrix
+  let rStr = "";
+  matR.forEach(row => rStr += `[ ${row.map(n => fmt(n, 10)).join(' ')} ]\n`);
+  html += `<details><summary>Result Matrix R (Pre-norm)</summary><div class="step-box">${rStr}</div></details>`;
 
   let batchBox = document.createElement('div');
-  batchBox.className = 'result-card step-box';
-  batchBox.innerHTML = steps;
+  batchBox.className = 'result-card';
+  batchBox.innerHTML = html;
   container.appendChild(batchBox);
 
+  // Results List
   let finalOutputs = [];
+  
+  let resultsList = document.createElement('div');
+  resultsList.className = 'result-card';
+  resultsList.style.maxHeight = "300px";
+  resultsList.style.overflowY = "auto";
+  
+  let listHtml = "<strong>Converted Results:</strong>";
 
   numbers.forEach((num, index) => {
-    let card = document.createElement('div');
-    card.className = 'result-card';
-    
     let rowResult = matR[index];
-    
-    // NORMALIZE: Handles both standard (Right-to-Left) and fractional (Left-to-Right)
     let norm = normalizeRational(rowResult, tBase);
     
     finalOutputs.push(norm.resultString);
-
-    let html = `<strong>${num.original} -> Base ${tBase.toString()}</strong>\n`;
-    html += `Row ${index}: [${rowResult.map(n => n.toString()).join(', ')}]\n`;
-    html += `Normalized: <span class="final-result">${norm.resultString}</span>`;
     
-    card.innerHTML = `<div class="step-box">${html}</div>`;
-    container.appendChild(card);
+    // Create a detail block for EACH result to show its specific log
+    listHtml += `
+    <details style="margin-top:5px;">
+      <summary style="font-weight:normal;">
+        <span style="color:#666;">${num.original} &rarr;</span> 
+        <span class="final-result">${norm.resultString}</span>
+      </summary>
+      <div class="step-box" style="font-size:10px; color:#444;">${norm.stepLog || "No normalization needed."}</div>
+    </details>`;
   });
+  
+  resultsList.innerHTML = listHtml;
+  container.appendChild(resultsList);
 
   document.getElementById('batchOutput').value = finalOutputs.join('\n');
 }
 
-// --- UNIVERSAL NORMALIZATION (Integers & Fractions) ---
+// --- UNIVERSAL NORMALIZATION (With Logging) ---
 function normalizeRational(coeffs, base) {
-  // Input is array of Rationals
-  let arr = coeffs.map(r => ({ n: r.n, d: r.d })); // Clone simple objects
+  let arr = coeffs.map(r => ({ n: r.n, d: r.d }));
   let len = arr.length;
-  let log = "";
+  let logs = []; // Log steps
 
-  // 1. Detect if we have fractions to clear (Left-to-Right sweep)
-  // We scan from Most Significant (Index 0) to Least Significant (Index len-1)
-  // pushing remainders to the right.
+  // Phase 1: Left-to-Right Fraction Sweep
   for (let i = 0; i < len; i++) {
     let r = arr[i];
     
-    // Value = n / d. 
-    // Integer part = n / d
-    // Remainder part = n % d
-    // Because BigInt division is integer division, q = n/d is correct floor (for pos).
-    
-    let q = r.n / r.d; // The "Digit"
-    let remNum = r.n % r.d; // The remainder fraction numerator
+    // Check if we have a fraction part
+    let remNum = r.n % r.d;
     
     if (remNum !== 0n) {
-      // We have a fraction remaining.
-      // Push it to the right: Value * Base
+      let q = r.n / r.d; // Integer part
+      
+      // Push remainder to the right
       if (i + 1 < len) {
-        // Add (rem/d) * base to next position
-        // next = next + (rem * base) / d
-        let next = arr[i+1];
-        
-        // Operation: next + (rem * base)/d
-        // Common denominator will be (next.d * d)
-        // newNum = next.n * d + (rem * base) * next.d
-        
         let termNum = remNum * base;
         let termDen = r.d;
         
-        // Add to next
+        let next = arr[i+1];
         let commonDen = next.d * termDen;
         let newNum = (next.n * termDen) + (termNum * next.d);
         
         arr[i+1] = { n: newNum, d: commonDen };
-        
-        // Keep only integer part here
         arr[i] = { n: q, d: 1n };
+        
+        logs.push(`Pos ${i}: Fraction ${r.n}/${r.d}. Keep ${q}, push remainder right -> Pos ${i+1} now ${newNum}/${commonDen}`);
       } else {
-        // If we are at the last digit and still have a fraction, 
-        // it means the number isn't an integer in this base (or precision loss).
-        // For this app, we assume integer inputs/outputs.
-        // We'll just keep the int part.
+        // Fraction at end (precision loss or non-integer result)
+        logs.push(`Pos ${i}: Fraction ${r.n}/${r.d} at end. Truncating.`);
         arr[i] = { n: q, d: 1n };
       }
     } else {
-      // Clean integer, just simplify
-      arr[i] = { n: q, d: 1n };
+       // Just simplify if it was 25/5 -> 5/1
+       if(r.d !== 1n) {
+         let val = r.n / r.d;
+         arr[i] = { n: val, d: 1n };
+       }
     }
   }
 
-  // 2. Now perform standard Right-to-Left Carry (for overflows)
-  // This handles the integer parts we just consolidated.
-  // Coeffs are now technically integers (stored as n/1).
+  // Phase 2: Right-to-Left Integer Carry
+  let intArr = arr.map(r => r.n);
   
-  let intArr = arr.map(r => r.n); // Extract BigInts
+  // Log the state before carry
+  // logs.push(`Integer State: [${intArr.join(', ')}]`);
 
   for (let i = intArr.length - 1; i >= 0; i--) {
     let val = intArr[i];
@@ -385,11 +364,18 @@ function normalizeRational(coeffs, base) {
     let q = (val - r) / base;
     
     if (q !== 0n) {
+       logs.push(`Pos ${i}: ${val} -> Keep ${r}, Carry ${q} left.`);
        intArr[i] = r;
-       if (i > 0) intArr[i-1] += q;
-       else { intArr.unshift(q); i++; }
-    } else {
-      intArr[i] = r; 
+       if (i > 0) {
+         intArr[i-1] += q;
+       } else {
+         intArr.unshift(q);
+         logs.push(`  (New Digit added at front: ${q})`);
+         i++; 
+       }
+    } else if (val !== r) {
+       // Case where val was negative but fit in mod base
+       intArr[i] = r;
     }
   }
 
@@ -398,5 +384,5 @@ function normalizeRational(coeffs, base) {
   while(start < intArr.length - 1 && intArr[start] === 0n) start++;
   for(let k = start; k < intArr.length; k++) str += getChar(intArr[k]);
   
-  return { result: intArr, resultString: str };
+  return { result: intArr, resultString: str, stepLog: logs.join('\n') };
 }
