@@ -15,11 +15,40 @@ function abs(n) {
   return n < 0n ? -n : n;
 }
 
+// --- RATIONAL NUMBER HELPER ---
+// Allows us to store "1/25" as {n:1n, d:25n} to avoid decimal precision loss
+class Rat {
+  constructor(n, d = 1n) {
+    this.n = BigInt(n);
+    this.d = BigInt(d);
+    // Standardize signs
+    if (this.d < 0n) { this.n = -this.n; this.d = -this.d; }
+  }
+
+  toString() {
+    if (this.d === 1n) return this.n.toString();
+    return `${this.n}/${this.d}`;
+  }
+
+  // Multiply Rational * Rational
+  mul(other) {
+    return new Rat(this.n * other.n, this.d * other.d);
+  }
+
+  // Add Rational + Rational
+  add(other) {
+    // a/b + c/d = (ad + bc) / bd
+    let num = (this.n * other.d) + (other.n * this.d);
+    let den = this.d * other.d;
+    return new Rat(num, den);
+  }
+}
+
+// Combinations for Pascal
 function combinations(n, k) {
   if (k < 0 || k > n) return 0n;
   if (k === 0 || k === n) return 1n;
   if (k > n / 2) k = n - k;
-  
   let res = 1n;
   let bn = BigInt(n);
   for (let i = 1; i <= k; i++) {
@@ -29,32 +58,45 @@ function combinations(n, k) {
   return res;
 }
 
-// --- MATRIX GENERATORS (BigInt) ---
+// --- MATRIX GENERATORS ---
 
+// Pascal Matrix (Offset) - Returns Rationals for consistency
 function getPascalPower(size, exponent) {
-  let matrix = Array(size).fill().map(() => Array(size).fill(0n));
+  let matrix = Array(size).fill().map(() => Array(size).fill(null));
   for (let r = 0; r < size; r++) {
     let power = size - 1 - r; 
-    for (let c = r; c < size; c++) {
+    for (let c = 0; c < size; c++) {
+      if (c < r) {
+        matrix[r][c] = new Rat(0);
+        continue;
+      }
       let k = c - r;
       let binom = combinations(power, k); 
       let offsetPow = exponent ** BigInt(k);
-      matrix[r][c] = binom * offsetPow;
+      matrix[r][c] = new Rat(binom * offsetPow);
     }
   }
   return matrix;
 }
 
-function getDiagonalMatrix(size, factor) {
-  let matrix = Array(size).fill().map(() => Array(size).fill(0n));
+// Diagonal Matrix (Multiples) - Handles Integer (5) AND Fraction (1/5)
+function getDiagonalMatrix(size, numBase, denBase) {
+  let matrix = Array(size).fill().map(() => Array(size).fill(new Rat(0)));
+  
   for (let i = 0; i < size; i++) {
+    // Powers decrease from Left to Right: (N-1)...0
     let power = BigInt(size - 1 - i);
-    matrix[i][i] = factor ** power;
+    
+    // Calculate (num/den) ^ power
+    let nP = numBase ** power;
+    let dP = denBase ** power;
+    
+    matrix[i][i] = new Rat(nP, dP);
   }
   return matrix;
 }
 
-// --- LINEAR ALGEBRA CORE (BigInt) ---
+// --- LINEAR ALGEBRA CORE ---
 
 function matrixMultiply(matA, matB) {
   let rA = matA.length;
@@ -64,13 +106,17 @@ function matrixMultiply(matA, matB) {
   
   if (cA !== rB) throw new Error("Matrix dimension mismatch");
 
-  let result = Array(rA).fill().map(() => Array(cB).fill(0n));
+  let result = Array(rA).fill().map(() => Array(cB).fill(null));
 
   for (let i = 0; i < rA; i++) { 
     for (let j = 0; j < cB; j++) { 
-      let sum = 0n;
+      let sum = new Rat(0);
       for (let k = 0; k < cA; k++) {
-        sum += matA[i][k] * matB[k][j];
+        // Inputs in MatA might be BigInts, convert to Rat on fly if needed
+        let valA = (matA[i][k] instanceof Rat) ? matA[i][k] : new Rat(matA[i][k]);
+        let valB = matB[k][j]; // MatB is always Rats
+        
+        sum = sum.add(valA.mul(valB));
       }
       result[i][j] = sum;
     }
@@ -85,19 +131,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const sourceIn = document.getElementById('sourceBase');
   const targetIn = document.getElementById('targetBase');
   const hint = document.getElementById('methodHint');
-  const batchOutput = document.getElementById('batchOutput'); // New Element
+  const batchOutput = document.getElementById('batchOutput');
 
   function validateAndToggle() {
     let s = parseInt(sourceIn.value) || 0;
     let t = parseInt(targetIn.value) || 0;
     
+    // Bounds Check
     if (Math.abs(s) > 62 || Math.abs(t) > 62) {
       hint.innerText = "Error: Bases must be between -62 and 62.";
       hint.style.color = "red";
       document.getElementById('convertBtn').disabled = true;
       return;
     }
-
     if (Math.abs(s) < 2 || Math.abs(t) < 2) {
       hint.innerText = "Error: Base must be >= 2 or <= -2.";
       hint.style.color = "red";
@@ -107,15 +153,21 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('convertBtn').disabled = false;
 
-    let isMultiple = (t !== 0) && (s % t === 0);
+    // Multiples Check: Either S % T == 0  OR  T % S == 0
+    let sIsMult = (t !== 0) && (s % t === 0); // e.g. 10 -> 2
+    let tIsMult = (s !== 0) && (t % s === 0); // e.g. 2 -> 10
+    let isCompatible = sIsMult || tIsMult;
+    
     let multipleOption = methodSelect.querySelector('option[value="multiple"]');
 
-    if(isMultiple) {
-      hint.innerText = `Source (${s}) is a multiple of Target (${t}). Multiples method available.`;
+    if(isCompatible) {
+      if(sIsMult) hint.innerText = `Source (${s}) is multiple of Target (${t}). Factor ${s/t}.`;
+      else        hint.innerText = `Target (${t}) is multiple of Source (${s}). Factor 1/${t/s}.`;
+      
       hint.style.color = "#666";
       multipleOption.disabled = false;
     } else {
-      hint.innerText = "Multiples method requires Source to be a multiple of Target.";
+      hint.innerText = "Multiples method requires one base to be a multiple of the other.";
       hint.style.color = "#666";
       multipleOption.disabled = true;
       if(methodSelect.value === "multiple") methodSelect.value = "offset";
@@ -141,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultsArea = document.getElementById('resultsArea');
     
     resultsArea.innerHTML = ''; 
-    batchOutput.value = ''; // Clear previous output
+    batchOutput.value = '';
 
     if(isNaN(sBaseNum) || isNaN(tBaseNum)) return;
 
@@ -159,8 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let absSource = Math.abs(sBaseNum); 
         for (let char of line) {
           let val = getVal(char);
-          if (val === -1) throw new Error(`Character '${char}' not found in map.`);
-          if (val >= absSource) throw new Error(`Digit '${char}' too large for Base ${absSource}`);
+          if (val === -1) throw new Error(`Character '${char}' not found.`);
+          if (val >= absSource) throw new Error(`Digit '${char}' too large.`);
           digits.push(BigInt(val));
         }
         numbers.push({ original: line, digits: digits });
@@ -189,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function batchProcessOffset(numbers, matrixN, size, sBase, tBase, container) {
   let offset = sBase - tBase; 
-  let pMatrix = getPascalPower(size, offset);
+  let pMatrix = getPascalPower(size, offset); // Returns Rationals
   let resultMatrixR = matrixMultiply(matrixN, pMatrix);
 
   renderBatchResult(
@@ -200,13 +252,23 @@ function batchProcessOffset(numbers, matrixN, size, sBase, tBase, container) {
 }
 
 function batchProcessMultiples(numbers, matrixN, size, sBase, tBase, container) {
-  let factor = sBase / tBase; 
-  let dMatrix = getDiagonalMatrix(size, factor);
+  let isFractional = (tBase > sBase); // e.g. 2 -> 10
+  let num = 1n, den = 1n;
+  
+  if (isFractional) {
+    den = tBase / sBase; // Factor in denominator: 1/5
+  } else {
+    num = sBase / tBase; // Factor in numerator: 5/1
+  }
+
+  // Generate Diagonal Matrix with Fractions or Integers
+  let dMatrix = getDiagonalMatrix(size, num, den);
+  
   let resultMatrixR = matrixMultiply(matrixN, dMatrix);
 
   renderBatchResult(
     "Multiples Method (Substitution)", 
-    `Factor: ${factor.toString()}, Matrix: Diagonal Powers`,
+    `Factor: ${num}/${den} (Diagonal Matrix)`,
     matrixN, dMatrix, resultMatrixR, numbers, tBase, container
   );
 }
@@ -221,7 +283,7 @@ function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase
   steps += `\n<strong>Transform Matrix (Size ${matTrans.length}x${matTrans.length}):</strong>\n`;
   matTrans.forEach(row => steps += `[ ${row.map(n => fmt(n, 8)).join(' ')} ]\n`);
 
-  steps += `\n<strong>Result Matrix R = N * M:</strong>\n`;
+  steps += `\n<strong>Result Matrix R (Rational):</strong>\n`;
   matR.forEach(row => steps += `[ ${row.map(n => fmt(n, 10)).join(' ')} ]\n`);
 
   let batchBox = document.createElement('div');
@@ -229,7 +291,6 @@ function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase
   batchBox.innerHTML = steps;
   container.appendChild(batchBox);
 
-  // NEW: Collection for batch output
   let finalOutputs = [];
 
   numbers.forEach((num, index) => {
@@ -237,9 +298,10 @@ function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase
     card.className = 'result-card';
     
     let rowResult = matR[index];
-    let norm = normalize(rowResult, tBase);
     
-    // Add to collection
+    // NORMALIZE: Handles both standard (Right-to-Left) and fractional (Left-to-Right)
+    let norm = normalizeRational(rowResult, tBase);
+    
     finalOutputs.push(norm.resultString);
 
     let html = `<strong>${num.original} -> Base ${tBase.toString()}</strong>\n`;
@@ -250,32 +312,91 @@ function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase
     container.appendChild(card);
   });
 
-  // Fill the Batch Output Textarea
   document.getElementById('batchOutput').value = finalOutputs.join('\n');
 }
 
-function normalize(coeffs, base) {
-  let arr = [...coeffs]; 
+// --- UNIVERSAL NORMALIZATION (Integers & Fractions) ---
+function normalizeRational(coeffs, base) {
+  // Input is array of Rationals
+  let arr = coeffs.map(r => ({ n: r.n, d: r.d })); // Clone simple objects
+  let len = arr.length;
+  let log = "";
+
+  // 1. Detect if we have fractions to clear (Left-to-Right sweep)
+  // We scan from Most Significant (Index 0) to Least Significant (Index len-1)
+  // pushing remainders to the right.
+  for (let i = 0; i < len; i++) {
+    let r = arr[i];
+    
+    // Value = n / d. 
+    // Integer part = n / d
+    // Remainder part = n % d
+    // Because BigInt division is integer division, q = n/d is correct floor (for pos).
+    
+    let q = r.n / r.d; // The "Digit"
+    let remNum = r.n % r.d; // The remainder fraction numerator
+    
+    if (remNum !== 0n) {
+      // We have a fraction remaining.
+      // Push it to the right: Value * Base
+      if (i + 1 < len) {
+        // Add (rem/d) * base to next position
+        // next = next + (rem * base) / d
+        let next = arr[i+1];
+        
+        // Operation: next + (rem * base)/d
+        // Common denominator will be (next.d * d)
+        // newNum = next.n * d + (rem * base) * next.d
+        
+        let termNum = remNum * base;
+        let termDen = r.d;
+        
+        // Add to next
+        let commonDen = next.d * termDen;
+        let newNum = (next.n * termDen) + (termNum * next.d);
+        
+        arr[i+1] = { n: newNum, d: commonDen };
+        
+        // Keep only integer part here
+        arr[i] = { n: q, d: 1n };
+      } else {
+        // If we are at the last digit and still have a fraction, 
+        // it means the number isn't an integer in this base (or precision loss).
+        // For this app, we assume integer inputs/outputs.
+        // We'll just keep the int part.
+        arr[i] = { n: q, d: 1n };
+      }
+    } else {
+      // Clean integer, just simplify
+      arr[i] = { n: q, d: 1n };
+    }
+  }
+
+  // 2. Now perform standard Right-to-Left Carry (for overflows)
+  // This handles the integer parts we just consolidated.
+  // Coeffs are now technically integers (stored as n/1).
   
-  for (let i = arr.length - 1; i >= 0; i--) {
-    let val = arr[i];
+  let intArr = arr.map(r => r.n); // Extract BigInts
+
+  for (let i = intArr.length - 1; i >= 0; i--) {
+    let val = intArr[i];
     let r = val % base;
     if (r < 0n) r += abs(base);
     let q = (val - r) / base;
     
     if (q !== 0n) {
-       arr[i] = r;
-       if (i > 0) arr[i-1] += q;
-       else { arr.unshift(q); i++; }
+       intArr[i] = r;
+       if (i > 0) intArr[i-1] += q;
+       else { intArr.unshift(q); i++; }
     } else {
-      arr[i] = r; 
+      intArr[i] = r; 
     }
   }
 
   let str = "";
   let start = 0;
-  while(start < arr.length - 1 && arr[start] === 0n) start++;
-  for(let k = start; k < arr.length; k++) str += getChar(arr[k]);
+  while(start < intArr.length - 1 && intArr[start] === 0n) start++;
+  for(let k = start; k < intArr.length; k++) str += getChar(intArr[k]);
   
-  return { result: arr, resultString: str };
+  return { result: intArr, resultString: str };
 }
