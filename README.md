@@ -16,7 +16,8 @@ This extension implements two matrix-based algorithms to convert numbers between
 ## ✨ Features
 
 * **Arbitrary Precision:** Powered by `BigInt`, this tool can convert integers of arbitrary length (hundreds of digits) without loss of precision.
-* **Matrix Visualization:** See the exact matrix multiplication steps ($N \times T = R$) used to transform the digits.
+* **Step-by-Step Animation:** (New in v1.1.0) An interactive overlay that animates the digit normalization process, showing how fractional remainders are swept and carries are propagated.
+* **Full Matrix Equation:** Display the exact matrix multiplication steps ($N \times T = R \rightarrow \text{Final}$) used to transform the digits.
 * **Batch Processing:** Vectorized implementation converts multiple numbers simultaneously using a single matrix operation.
 * **Round-Trip Testing:** Includes a **Batch Output** field to easily copy results and paste them back into the input for reverse conversion.
 * **Advanced Base Support:** Supports bases from **-62 to 62** (including negative bases like Negabinary).
@@ -36,7 +37,11 @@ This extension implements two matrix-based algorithms to convert numbers between
 2.  **Config:** Select your **Source Base** and **Target Base**.
     * Use the **Swap (⇄)** button to quickly flip source and target.
     * *Note:* Bases **-1, 0, and 1** are restricted as they do not function as valid positional number systems.
-3.  **Method:**
+3.  **Convert:** Click **Convert** to see the static results, transformation matrices, and normalization logs for all numbers.
+4.  **Step-by-Step Animation:** Click **🎥 Step-by-Step Animation** to open an interactive overlay.
+    * The visualizer shows the full matrix equation: $N \times T = R \rightarrow \text{Final}$.
+    * Watch the **Phase 1: Fraction Sweep** (left-to-right) and **Phase 2: Carry Propagation** (right-to-left) in real-time.
+5.  **Method:**
     * **Offset (Pascal Matrix):** Works for *any* pair of valid bases.
     * **Multiples:** Only available if `Source % Target == 0` (e.g., Base 16 to Base 4).
 4.  **Visualize:** Click **Convert & Visualize**.
@@ -63,7 +68,10 @@ When the source base is a multiple of the target (e.g., Base 10 to Base 5, facto
 * **Operation:** $R = N \times D$
 
 ### 3. Digit Normalization
-The matrix operations produce a result vector $R$ where "digits" may be larger than the base (or negative). A normalization pass propagates carries (or borrows) from right to left to produce the final standard integer representation.
+The matrix operations produce a result vector $R$ where "digits" may be larger than the base (or negative). To handle cases where intermediate coefficients are fractional (common in the Multiples method), the extension uses a **Dual-Phase Normalization**:
+
+1.  **Phase 1: Fraction Sweep (Left-to-Right):** Iterates through the vector to clear denominators by pushing fractional remainders to the right-hand neighboring digit.
+2.  **Phase 2: Carry Propagation (Right-to-Left):** Performs standard positional carry and borrow operations to ensure every digit is within the valid range $[0, |\text{Base}| - 1]$.
 
 ## 📂 Project Structure
 
