@@ -351,7 +351,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('viz-cells');
     const status = document.getElementById('viz-status');
     const sleep = (ms) => new Promise(res => setTimeout(res, ms));
-    const absVal = (n) => (n < 0n ? -n : n);
 
     const renderMatrix = (activeRow, activeCol) => {
       container.innerHTML = '';
@@ -404,6 +403,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // Refine significant boundary for Phase 2 optimization
+      let refinedSignif = 0;
+      for (let k = 0; k < currentRow.length; k++) {
+        if (currentRow[k].n !== 0n) { refinedSignif = k; break; }
+      }
+
       // Phase 2: Right-to-Left Carry Propagation
       status.innerHTML = `Row ${r + 1}: Phase 2: Carry/Borrow Propagation`;
       for (let i = currentRow.length - 1; i >= 0; i--) {
@@ -433,6 +438,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           currentRow[i] = new Rat(rem, 1n); // Ensure normalized if it was negative
           status.innerText = `Row ${r+1}, Pos ${i}: ${val} is stable.`;
+          // Optimization: If we've passed the original significant digits and have no carry
+          if (i <= refinedSignif) break;
           await sleep(150);
         }
       }
@@ -585,6 +592,12 @@ function normalizeRational(coeffs, base) {
 
   // Phase 2: Right-to-Left Integer Carry
   let intArr = arr.map(r => r.n);
+
+  // Refine significant boundary for Phase 2 optimization
+  let refinedSignif = 0;
+  for (let k = 0; k < intArr.length; k++) {
+    if (intArr[k] !== 0n) { refinedSignif = k; break; }
+  }
   
   // Log the state before carry
   // logs.push(`Integer State: [${intArr.join(', ')}]`);
@@ -605,9 +618,10 @@ function normalizeRational(coeffs, base) {
          logs.push(`  (New Digit added at front: ${q})`);
          i++; 
        }
-    } else if (val !== r) {
-       // Case where val was negative but fit in mod base
+    } else {
        intArr[i] = r;
+       // Optimization: Break early if we've processed all significant digits and have no carry
+       if (i <= refinedSignif) break;
     }
   }
 

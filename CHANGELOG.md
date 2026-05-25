@@ -13,6 +13,7 @@
 - **Animation Performance**: Optimized step-by-step speed by 25% for better UX.
 - **UI Robustness**: Added scrollable visualization area and sticky close button to prevent overflow issues in the Chrome extension popup.
 - **Type Alignment**: Ensured the new visualizer correctly handles `Rat` objects from the matrix engine, matching the core conversion logic.
+- **Phase 2 Optimization**: Refined significant boundary detection after the Fraction Sweep to skip redundant leading zero checks during Carry Propagation.
 
 ## [1.0.0] - 2026-01-18
 - Initial release with Offset and Multiples methods.
