@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1] - 2026-05-26
+### Fixed
+- **Negative Base Factors**: Fixed a critical bug in the Multiples method where BigInt division truncated scaling factors to zero when converting between positive and negative bases.
+### Improved
+- **Honest Boundary Detection**: Replaced "cheating" lookahead scans with a metadata-driven approach. Phase 2 now respects boundaries established by input padding and dynamic "draining" during Phase 1.
+- **Visual Clutter Reduction**: Leading padding cells in the visualizer are now hidden (`visibility: hidden`) to focus on active digits, and static matrix displays are sliced to show only significant columns.
+
 ## [1.1.0] - 2026-05-25
 ### Added
 - **Visualizer Engine**: Dynamic overlay to animate the conversion process step-by-step.

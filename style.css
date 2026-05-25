@@ -221,6 +221,8 @@ details[open] summary::after {
   transition: all 0.3s ease;
 }
 
+.viz-cell.empty { visibility: hidden; }
+
 .row-active { background: rgba(230, 126, 34, 0.1); }
 
 .viz-cell.active {
