@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
   versionTag.style.fontSize = '10px';
   versionTag.style.color = '#999';
   versionTag.style.textAlign = 'right';
-  versionTag.innerText = 'v1.1.0';
+  versionTag.innerText = 'v1.1.1';
   document.querySelector('.container').appendChild(versionTag);
 
   document.getElementById('convertBtn').addEventListener('click', () => {
@@ -286,7 +286,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let size = maxLength;
     let matTrans = (method === 'offset') 
       ? getPascalPower(size, sourceBase - targetBase)
-      : getDiagonalMatrix(size, (targetBase > sourceBase ? 1n : sourceBase/targetBase), (targetBase > sourceBase ? targetBase/sourceBase : 1n));
+      : ( (sourceBase !== 0n && targetBase % sourceBase === 0n)
+          ? getDiagonalMatrix(size, 1n, targetBase / sourceBase)
+          : getDiagonalMatrix(size, sourceBase / targetBase, 1n) );
     
     let matR = matrixMultiply(matN, matTrans);
     
@@ -294,6 +296,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // We store each row's values. Note: rows might grow due to unshifts.
     let matrixValues = matR.map(row => row.map(r => new Rat(r.n, r.d)));
     let rowLabels = rawLines.filter(l => l.trim()).slice(0, matrixValues.length);
+    // Pre-calculate padding based on input lengths to avoid "cheating" scans
+    let activePaddings = numbers.map(n => maxLength - n.length);
 
     // Create Overlay
     const overlay = document.createElement('div');
@@ -325,19 +329,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('closeViz').onclick = () => overlay.remove();
 
     // Fill Static Matrices
-    const fillMatrix = (id, mat) => {
+    const fillMatrix = (id, mat, paddings = null) => {
       const div = document.getElementById(id);
-      mat.forEach(row => {
+      mat.forEach((row, rIdx) => {
         const rowEl = document.createElement('div');
         rowEl.className = 'viz-row-static';
-        rowEl.innerText = `[ ${row.map(cell => (cell instanceof Rat ? cell.toString() : cell.toString())).join(', ')} ]`;
+        let displayRow = (paddings && paddings[rIdx] !== undefined) ? row.slice(paddings[rIdx]) : row;
+        rowEl.innerText = `[ ${displayRow.map(cell => (cell instanceof Rat ? cell.toString() : cell.toString())).join(', ')} ]`;
         div.appendChild(rowEl);
       });
     };
 
-    fillMatrix('viz-source', matN);
+    fillMatrix('viz-source', matN, activePaddings);
     fillMatrix('viz-trans', matTrans);
-    fillMatrix('viz-result-static', matR);
+    fillMatrix('viz-result-static', matR, activePaddings);
 
     // Initialize Final Matrix with placeholders
     const finalDiv = document.getElementById('viz-final');
@@ -359,12 +364,17 @@ document.addEventListener('DOMContentLoaded', () => {
         rowDiv.className = `viz-row ${rIdx === activeRow ? 'row-active' : ''}`;
         
         row.forEach((v, cIdx) => {
+          const isPadding = cIdx < activePaddings[rIdx];
           const valStr = v.toString();
           const cell = document.createElement('div');
-          cell.className = `viz-cell ${rIdx === activeRow && cIdx === activeCol ? 'active' : ''}`;
-          // Shrink text if the fraction string is long
-          const fontSize = valStr.length > 5 ? '0.7em' : '1.1em';
-          cell.innerHTML = `<div class="v-val" style="font-size:${fontSize}">${valStr}</div>`;
+          if (isPadding) {
+            cell.className = 'viz-cell empty';
+          } else {
+            cell.className = `viz-cell ${rIdx === activeRow && cIdx === activeCol ? 'active' : ''}`;
+            // Shrink text if the fraction string is long
+            const fontSize = valStr.length > 5 ? '0.7em' : '1.1em';
+            cell.innerHTML = `<div class="v-val" style="font-size:${fontSize}">${valStr}</div>`;
+          }
           rowDiv.appendChild(cell);
         });
         container.appendChild(rowDiv);
@@ -374,10 +384,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Animate every row
     for (let r = 0; r < matrixValues.length; r++) {
       let currentRow = matrixValues[r];
+      let padding = activePaddings[r];
       status.innerHTML = `Row ${r + 1}: <strong>${rowLabels[r]}</strong> - Phase 1: Fraction Sweep`;
 
       // Phase 1: Left-to-Right Fraction Sweep (Clearing denominators)
-      for (let i = 0; i < currentRow.length; i++) {
+      for (let i = padding; i < currentRow.length; i++) {
         renderMatrix(r, i);
         let cur = currentRow[i];
         if (cur.d !== 1n) {
@@ -401,12 +412,10 @@ document.addEventListener('DOMContentLoaded', () => {
             await sleep(450);
           }
         }
-      }
-
-      // Refine significant boundary for Phase 2 optimization
-      let refinedSignif = 0;
-      for (let k = 0; k < currentRow.length; k++) {
-        if (currentRow[k].n !== 0n) { refinedSignif = k; break; }
+        // Honest boundary update: if this cell is now 0 and was our leading digit, move padding boundary
+        if (currentRow[i].n === 0n && i === activePaddings[r] && i < currentRow.length - 1) {
+          activePaddings[r]++;
+        }
       }
 
       // Phase 2: Right-to-Left Carry Propagation
@@ -438,8 +447,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           currentRow[i] = new Rat(rem, 1n); // Ensure normalized if it was negative
           status.innerText = `Row ${r+1}, Pos ${i}: ${val} is stable.`;
-          // Optimization: If we've passed the original significant digits and have no carry
-          if (i <= refinedSignif) break;
+          // Optimization: If we've passed the original data boundary and have no carry, stop.
+          if (i <= activePaddings[r]) break;
           await sleep(150);
         }
       }
@@ -471,9 +480,8 @@ function batchProcessOffset(numbers, matrixN, size, sBase, tBase, container) {
 }
 
 function batchProcessMultiples(numbers, matrixN, size, sBase, tBase, container) {
-  let isFractional = (tBase > sBase);
   let num = 1n, den = 1n;
-  if (isFractional) den = tBase / sBase;
+  if (sBase !== 0n && tBase % sBase === 0n) den = tBase / sBase;
   else num = sBase / tBase;
 
   let dMatrix = getDiagonalMatrix(size, num, den);
@@ -523,10 +531,12 @@ function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase
   resultsList.style.overflowY = "auto";
   
   let listHtml = "<strong>Converted Results:</strong>";
+  let matrixWidth = matR[0].length;
 
   numbers.forEach((num, index) => {
     let rowResult = matR[index];
-    let norm = normalizeRational(rowResult, tBase);
+    let padding = matrixWidth - num.digits.length;
+    let norm = normalizeRational(rowResult, tBase, padding);
     
     finalOutputs.push(norm.resultString);
     
@@ -548,13 +558,14 @@ function renderBatchResult(title, subTitle, matN, matTrans, matR, numbers, tBase
 }
 
 // --- UNIVERSAL NORMALIZATION (With Logging) ---
-function normalizeRational(coeffs, base) {
+function normalizeRational(coeffs, base, padding = 0) {
   let arr = coeffs.map(r => ({ n: r.n, d: r.d }));
   let len = arr.length;
   let logs = []; // Log steps
+  let activePadding = padding;
 
   // Phase 1: Left-to-Right Fraction Sweep
-  for (let i = 0; i < len; i++) {
+  for (let i = padding; i < len; i++) {
     let r = arr[i];
     
     // Check if we have a fraction part
@@ -588,19 +599,15 @@ function normalizeRational(coeffs, base) {
          arr[i] = { n: val, d: 1n };
        }
     }
+
+    // If cell is now zero and is the leading edge, advance the active padding
+    if (arr[i].n === 0n && i === activePadding && i < len - 1) {
+      activePadding++;
+    }
   }
 
   // Phase 2: Right-to-Left Integer Carry
   let intArr = arr.map(r => r.n);
-
-  // Refine significant boundary for Phase 2 optimization
-  let refinedSignif = 0;
-  for (let k = 0; k < intArr.length; k++) {
-    if (intArr[k] !== 0n) { refinedSignif = k; break; }
-  }
-  
-  // Log the state before carry
-  // logs.push(`Integer State: [${intArr.join(', ')}]`);
 
   for (let i = intArr.length - 1; i >= 0; i--) {
     let val = intArr[i];
@@ -620,8 +627,8 @@ function normalizeRational(coeffs, base) {
        }
     } else {
        intArr[i] = r;
-       // Optimization: Break early if we've processed all significant digits and have no carry
-       if (i <= refinedSignif) break;
+       // Optimization: Break early if we've reached the known padding and have no carry.
+       if (i <= activePadding) break;
     }
   }
 
