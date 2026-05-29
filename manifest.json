@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pascal's Triangle Base Converter",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Visualizes integer base conversion using Pascal Matrix (Taylor Shift) and Multiples methods.",
   "action": {
     "default_popup": "popup.html",
