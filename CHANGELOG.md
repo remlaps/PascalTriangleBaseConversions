@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.2] - 2026-05-28
+### Added
+- **Reset Button**: Clears the form for new data entry
+- **Round Trip Button**: Reverses the last conversion by swapping source base and target base, input and output.
+- **Audit Button**: Basic arithmetic to confirm the results.
+- **Random Button**: Adds random numbers to the source matrix.
+
+### Fixed
+- **Multiples Animation Boundary**: Fixed a bug in the Step-by-Step animation where carries propagating into leading "padding" cells were terminating the loop prematurely. 
+- **Dynamic Row Expansion**: Carry propagation now correctly resets visibility boundaries and handles row unshifting (new leading digits) with immediate rendering updates.
+
 ## [1.1.1] - 2026-05-26
 ### Fixed
 - **Negative Base Factors**: Fixed a critical bug in the Multiples method where BigInt division truncated scaling factors to zero when converting between positive and negative bases.

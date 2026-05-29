@@ -11,6 +11,30 @@ function getChar(val) {
   return CHARS[v];
 }
 
+// --- AUDIT HELPER ---
+function getAuditDetails(label, digits, base) {
+  let total = 0n;
+  let terms = [];
+  let b = BigInt(base);
+  
+  for (let i = 0; i < digits.length; i++) {
+    let power = BigInt(digits.length - 1 - i);
+    let digitVal = digits[i];
+    let termVal = digitVal * (b ** power);
+    total += termVal;
+    
+    terms.push(`(${digitVal.toString()} &times; ${base}<sup>${power}</sup>)`);
+  }
+  
+  return {
+    value: total,
+    html: `<div style="margin-top:5px; line-height: 1.4;">
+             <span style="color: #666;">${label} Base-10 sum:</span><br>
+             <span style="word-break: break-all;">${terms.join(' + ')}</span> = <strong>${total.toString()}</strong>
+           </div>`
+  };
+}
+
 function abs(n) {
   return n < 0n ? -n : n;
 }
@@ -161,21 +185,133 @@ document.addEventListener('DOMContentLoaded', () => {
     validateAndToggle();
   });
 
-  // Inject Visualize Button
+  // --- ACTION BUTTONS (Organized into Rows) ---
+
   const convertBtn = document.getElementById('convertBtn');
+  const resultsArea = document.getElementById('resultsArea');
+
+  // Top Row: Primary Actions
+  const topBtnRow = document.createElement('div');
+  topBtnRow.style.display = 'flex';
+  topBtnRow.style.gap = '8px';
+  topBtnRow.style.marginTop = '8px';
+  convertBtn.parentNode.insertBefore(topBtnRow, convertBtn);
+
+  convertBtn.style.flex = '1';
+  convertBtn.style.width = 'auto'; // Override CSS width: 100%
+  convertBtn.style.fontSize = '12px';
+
   const vizBtn = document.createElement('button');
   vizBtn.id = 'vizBtn';
-  vizBtn.innerText = '🎥 Step-by-Step Animation';
-  vizBtn.style.marginTop = '8px';
+  vizBtn.innerText = '🎥 Step-by-Step';
   vizBtn.style.backgroundColor = '#8e44ad';
   vizBtn.style.color = 'white';
   vizBtn.style.border = 'none';
   vizBtn.style.padding = '8px';
   vizBtn.style.borderRadius = '4px';
   vizBtn.style.cursor = 'pointer';
-  vizBtn.style.width = '100%';
+  vizBtn.style.flex = '1';
   vizBtn.style.fontWeight = 'bold';
-  convertBtn.parentNode.insertBefore(vizBtn, convertBtn.nextSibling);
+  vizBtn.style.fontSize = '12px';
+
+  topBtnRow.appendChild(convertBtn);
+  topBtnRow.appendChild(vizBtn);
+
+  // Utility Buttons (Random & Reset) - Positioned at the top-right of input area
+  const randBtn = document.createElement('button');
+  randBtn.id = 'randBtn';
+  randBtn.innerText = '🎲 Random';
+  randBtn.style.backgroundColor = '#27ae60';
+  randBtn.style.color = 'white';
+  randBtn.style.border = 'none';
+  randBtn.style.padding = '2px 6px';
+  randBtn.style.borderRadius = '4px';
+  randBtn.style.cursor = 'pointer';
+  randBtn.style.fontSize = '10px';
+  randBtn.style.position = 'absolute';
+  randBtn.style.right = '58px';
+  randBtn.style.top = '0';
+
+  randBtn.addEventListener('click', () => {
+    const sBaseNum = Math.abs(parseInt(sourceIn.value));
+    if (isNaN(sBaseNum) || sBaseNum < 2) return;
+    const len = Math.floor(Math.random() * 8) + 4;
+    let res = "";
+    for (let i = 0; i < len; i++) {
+      let v = Math.floor(Math.random() * sBaseNum);
+      if (i === 0 && v === 0 && len > 1) v = Math.floor(Math.random() * (sBaseNum - 1)) + 1;
+      res += getChar(v);
+    }
+    inputArea.value = inputArea.value.trim() ? inputArea.value.trimEnd() + "\n" + res : res;
+  });
+
+  const resetBtn = document.createElement('button');
+  resetBtn.id = 'resetBtn';
+  resetBtn.innerText = '♻️ Reset';
+  resetBtn.style.backgroundColor = '#95a5a6';
+  resetBtn.style.color = 'white';
+  resetBtn.style.border = 'none';
+  resetBtn.style.padding = '2px 6px';
+  resetBtn.style.borderRadius = '4px';
+  resetBtn.style.cursor = 'pointer';
+  resetBtn.style.fontSize = '10px';
+  resetBtn.style.position = 'absolute';
+  resetBtn.style.right = '0';
+  resetBtn.style.top = '0';
+
+  resetBtn.addEventListener('click', () => {
+    sourceIn.value = '10';
+    targetIn.value = '9';
+    methodSelect.value = 'offset';
+    inputArea.value = '';
+    resultsArea.innerHTML = '';
+    batchOutput.value = '';
+    bottomBtnRow.style.display = 'none';
+    validateAndToggle();
+  });
+
+  const inputArea = document.getElementById('inputNumbers');
+  if (inputArea && inputArea.parentNode) {
+    inputArea.parentNode.style.position = 'relative';
+    inputArea.parentNode.appendChild(randBtn);
+    inputArea.parentNode.appendChild(resetBtn);
+  }
+
+  // Bottom Row: Verification Tools (Below Results)
+  const bottomBtnRow = document.createElement('div');
+  bottomBtnRow.id = 'bottomBtnRow';
+  bottomBtnRow.style.display = 'none';
+  bottomBtnRow.style.gap = '8px';
+  bottomBtnRow.style.marginTop = '12px';
+  resultsArea.parentNode.insertBefore(bottomBtnRow, resultsArea.nextSibling);
+
+  const auditBtn = document.createElement('button');
+  auditBtn.id = 'auditBtn';
+  auditBtn.innerText = '🔍 Audit Results';
+  auditBtn.style.backgroundColor = '#16a085';
+  auditBtn.style.color = 'white';
+  auditBtn.style.border = 'none';
+  auditBtn.style.padding = '8px';
+  auditBtn.style.borderRadius = '4px';
+  auditBtn.style.cursor = 'pointer';
+  auditBtn.style.flex = '1';
+  auditBtn.style.fontWeight = 'bold';
+  auditBtn.style.fontSize = '12px';
+  bottomBtnRow.appendChild(auditBtn);
+
+  const roundTripBtn = document.createElement('button');
+  roundTripBtn.id = 'roundTripBtn';
+  roundTripBtn.innerText = '🔄 Round-Trip';
+  roundTripBtn.style.backgroundColor = '#e67e22';
+  roundTripBtn.style.color = 'white';
+  roundTripBtn.style.border = 'none';
+  roundTripBtn.style.padding = '8px';
+  roundTripBtn.style.borderRadius = '4px';
+  roundTripBtn.style.cursor = 'pointer';
+  roundTripBtn.style.flex = '1';
+  roundTripBtn.style.fontWeight = 'bold';
+  roundTripBtn.style.fontSize = '12px';
+  bottomBtnRow.appendChild(roundTripBtn);
 
   sourceIn.addEventListener('input', validateAndToggle);
   targetIn.addEventListener('input', validateAndToggle);
@@ -186,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
   versionTag.style.fontSize = '10px';
   versionTag.style.color = '#999';
   versionTag.style.textAlign = 'right';
-  versionTag.innerText = 'v1.1.1';
+  versionTag.innerText = 'v1.1.2';
   document.querySelector('.container').appendChild(versionTag);
 
   document.getElementById('convertBtn').addEventListener('click', () => {
@@ -194,8 +330,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const sBaseNum = parseInt(document.getElementById('sourceBase').value);
     const tBaseNum = parseInt(document.getElementById('targetBase').value);
     const method = document.getElementById('methodSelect').value;
-    const resultsArea = document.getElementById('resultsArea');
     
+    bottomBtnRow.style.display = 'none';
     resultsArea.innerHTML = ''; 
     batchOutput.value = '';
 
@@ -241,6 +377,10 @@ document.addEventListener('DOMContentLoaded', () => {
       batchProcessOffset(numbers, matrixN, maxLength, sourceBase, targetBase, resultsArea);
     } else {
       batchProcessMultiples(numbers, matrixN, maxLength, sourceBase, targetBase, resultsArea);
+    }
+
+    if (batchOutput.value.trim()) {
+      bottomBtnRow.style.display = 'flex';
     }
   });
 
@@ -437,11 +577,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (i > 0) {
             currentRow[i - 1] = new Rat(currentRow[i - 1].n + q, 1n);
+            // Ensure visibility if carry moves left into what was previously padding
+            if (i - 1 < activePaddings[r]) {
+              activePaddings[r] = i - 1;
+            }
           } else {
             currentRow.unshift(new Rat(q, 1n));
-            // When a row grows, we should ideally pad others for visual consistency
-            // but for this animation we'll just allow the row to be longer.
+            // The new digit is now at index 0, so visibility must be ensured.
+            activePaddings[r] = 0; 
             status.innerText = "New digit created at the front!";
+            renderMatrix(r, 0); // Immediately show the expansion
+            await sleep(450);
             i++; 
           }
         } else {
@@ -464,6 +610,91 @@ document.addEventListener('DOMContentLoaded', () => {
 
     status.innerHTML = `<strong>All rows normalized!</strong>`;
     renderMatrix(-1, -1);
+  });
+
+  roundTripBtn.addEventListener('click', () => {
+    const output = batchOutput.value.trim();
+    if (!output) return;
+
+    // Move output to input
+    document.getElementById('inputNumbers').value = output;
+    batchOutput.value = '';
+
+    // Swap Bases
+    let temp = sourceIn.value;
+    sourceIn.value = targetIn.value;
+    targetIn.value = temp;
+
+    // Clear current results and hide action buttons
+    document.getElementById('resultsArea').innerHTML = '';
+    bottomBtnRow.style.display = 'none';
+    validateAndToggle();
+  });
+
+  auditBtn.addEventListener('click', () => {
+    const sBaseNum = parseInt(document.getElementById('sourceBase').value);
+    const tBaseNum = parseInt(document.getElementById('targetBase').value);
+    const inputStr = document.getElementById('inputNumbers').value;
+    const outputStr = document.getElementById('batchOutput').value;
+
+    const sourceLines = inputStr.split('\n').map(l => l.trim()).filter(l => l);
+    const targetLines = outputStr.split('\n').map(l => l.trim()).filter(l => l);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'viz-overlay';
+    overlay.innerHTML = `
+      <div class="viz-stage" style="max-width: 800px;">
+        <h3>Audit & Verification Report</h3>
+        <div class="viz-scroll-area" id="auditReport" style="text-align: left; font-family: monospace; font-size: 12px;">
+        </div>
+        <button id="closeAudit" style="margin-top:15px; padding:10px 25px; flex-shrink:0;">Close</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById('closeAudit').onclick = () => overlay.remove();
+
+    const reportDiv = document.getElementById('auditReport');
+
+    sourceLines.forEach((sStr, idx) => {
+      const tStr = targetLines[idx];
+      if (!tStr) return;
+
+      try {
+        const sDigits = [...sStr].map(c => {
+          let v = getVal(c);
+          if (v === -1) throw new Error(`Invalid char ${c}`);
+          return BigInt(v);
+        });
+        const tDigits = [...tStr].map(c => {
+          let v = getVal(c);
+          if (v === -1) throw new Error(`Invalid char ${c}`);
+          return BigInt(v);
+        });
+
+        const sAudit = getAuditDetails("Source", sDigits, sBaseNum);
+        const tAudit = getAuditDetails("Target", tDigits, tBaseNum);
+        
+        const match = sAudit.value === tAudit.value;
+        const statusHtml = match 
+          ? `<span style="color: #2ecc71; font-weight: bold;">[PASS]</span>` 
+          : `<span style="color: #e74c3c; font-weight: bold;">[FAIL] Values differ!</span>`;
+
+        const card = document.createElement('div');
+        card.className = 'result-card';
+        card.style.color = '#333';
+        card.style.marginBottom = '15px';
+        card.innerHTML = `
+          <div style="border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; font-size: 14px;">
+            <strong>Test Case ${idx + 1}:</strong> ${sStr}<sub>${sBaseNum}</sub> &rarr; ${tStr}<sub>${tBaseNum}</sub> ${statusHtml}
+          </div>
+          ${sAudit.html}
+          <div style="margin-top: 10px;">${tAudit.html}</div>
+        `;
+        reportDiv.appendChild(card);
+      } catch (e) {
+        reportDiv.innerHTML += `<div class="result-card error">Error auditing line ${idx+1} (${sStr}): ${e.message}</div>`;
+      }
+    });
   });
 });
 
